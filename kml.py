@@ -21,17 +21,7 @@ class kml:
 		x = round(x/len(list_input),accu)
 		y = round(y/len(list_input),accu)
 		z = round(z/len(list_input),accu)
-		print(x,y,z)
 		return x,y,z
-
-
-	# def centr(self, list):
-	# 	print(list)
-	# 	accu = 3
-	# 	x = round((list[0][0]+list[1][0]+list[2][0])/3,accu)
-	# 	y = round((list[0][1]+list[1][1]+list[2][1])/3,accu)
-	# 	z = round((list[0][2]+list[1][2]+list[2][2])/3,accu)
-	# 	return [x,y,z]
 
 	def areaAzDip(self, list):
 		a, b = [], []
@@ -53,18 +43,22 @@ class kml:
 		accu = 3
 		return round(az,1), round(dip,1), round(area,accu)
 
+	def lenght(self, list):
+		
+		pass
+
 	def kml_to_list_orientation(self, file, listout):
 		with open(file) as kml:
 			data = kml.readlines()
-			for idx, line in enumerate(data):
+			for idy, line in enumerate(data):
 				string = line.split()
 				if "<LineString>" in line:
 					try:
-						if 'true' in data[idx+1]:
+						if 'true' in data[idy+1]:
 							shale = 1
 						else:
 							shale = 0
-						coords = data[idx+3]
+						coords = data[idy+3]
 						coords = coords.replace('        <coordinates>','')
 						coords = coords.replace('</coordinates>\n','')
 						coords = coords.split(' ')
@@ -79,16 +73,16 @@ class kml:
 						az, dip, area = self.areaAzDip(coords)
 						listout.append([x,y,z,az,dip, shale, area])
 					except:
-						pass
+						print('Probably an empty line: {} ({})'.format(idy, file))
 
 	def kml_to_list_size(self, file, listout):
 		with open(file) as kml:
 			data = kml.readlines()
-			for idx, line in enumerate(data):
+			for idy, line in enumerate(data):
 				string = line.split()
 				if "<LineString>" in line:
 					try:
-						coords = data[idx+3]
+						coords = data[idy+3]
 						coords = coords.replace('        <coordinates>','')
 						coords = coords.replace('</coordinates>\n','')
 						coords = coords.split(' ')
@@ -99,9 +93,10 @@ class kml:
 								point[idx] = float(point[idx])
 						for idx in range(0,len(coords)):
 							coords[idx] = self.code(coords[idx])
-
+						x, y, z = self.centr(coords)
+						leahgt = self.lenght(coords)
 					except:
-						pass
+						print('Probably an empty line: {} ({})'.format(idy, file))
 		print('затычка')
 
 	def list_to_txt(self, listinput, waytxt):
