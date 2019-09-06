@@ -71,6 +71,20 @@ class kml:
 			print('no one line')
 		return az
 
+	def text_coords_to_float(self, coords):
+		coords = coords.replace('        <coordinates>','')
+		coords = coords.replace('</coordinates>\n','')
+		coords = coords.split(' ')
+
+		for idx in range(0,len(coords)):
+			coords[idx] = coords[idx].split(',')
+		for point in coords:
+			for idx in range(0,len(point)):
+				point[idx] = float(point[idx])
+		for idx in range(0,len(coords)):
+			coords[idx] = self.code(coords[idx])
+		return coords
+
 	def length_from_coords(self, list):
 		x = (list[0][0]-list[1][0])*(list[0][0]-list[1][0])
 		y = (list[0][1]-list[1][1])*(list[0][1]-list[1][1])
@@ -89,16 +103,7 @@ class kml:
 						else:
 							shale = 0
 						coords = data[idy+3]
-						coords = coords.replace('        <coordinates>','')
-						coords = coords.replace('</coordinates>\n','')
-						coords = coords.split(' ')
-						for idx in range(0,len(coords)):
-							coords[idx] = coords[idx].split(',')
-						for point in coords:
-							for idx in range(0,len(point)):
-								point[idx] = float(point[idx])
-						for idx in range(0,len(coords)):
-							coords[idx] = self.code(coords[idx])
+						coords = self.text_coords_to_float(coords)
 						x, y, z = self.center(coords)
 						az, dip, area = self.area_az_dip(coords)
 						list_out.append([x,y,z,az,dip, shale, area])
@@ -117,17 +122,17 @@ class kml:
 						name = name.replace('      <name>','')
 						name = name.replace('</name>\n','')
 						coords = data[idy+3]
-						coords = coords.replace('        <coordinates>','')
-						coords = coords.replace('</coordinates>\n','')
-						coords = coords.split(' ')
+						coords = self.text_coords_to_float(coords)
 
-						for idx in range(0,len(coords)):
-							coords[idx] = coords[idx].split(',')
-						for point in coords:
-							for idx in range(0,len(point)):
-								point[idx] = float(point[idx])
-						for idx in range(0,len(coords)):
-							coords[idx] = self.code(coords[idx])
+						if '<Placemark>' in name:
+							dictionary.update({'noname {}'.format(idy):[]})
+							for idx in range(0,len(coords)-1):
+								list_noname = [coords[idx], coords[idx+1]]
+								x, y, z = self.center(list_noname)
+								length = self.length_from_coords(list_noname)
+								az = self.az_from_coords(list_noname)
+								dictionary['noname {}'.format(idy)].append([x, y, z, length, az])
+							continue
 
 						x, y, z = self.center(coords)
 						length = self.length_from_coords(coords)
@@ -139,7 +144,7 @@ class kml:
 						print('Probably an empty line: {} ({})'.format(idy, file))
 
 		for name in dictionary:
-			# print(name, dictionary[name])
+			print(name, dictionary[name])
 			x, y, z = self.center(dictionary[name])
 			length, az = self.middle(dictionary[name])
 			list_out.append([x,y,z,length, az])
