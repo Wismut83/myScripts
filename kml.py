@@ -144,10 +144,11 @@ class kml:
 						print('Probably an empty line: {} ({})'.format(idy, file))
 
 		for name in dictionary:
-			print(name, dictionary[name])
+			
 			x, y, z = self.center(dictionary[name])
 			length, az = self.middle(dictionary[name])
 			list_out.append([x,y,z,length, az])
+		print('goups:', len(dictionary.keys()))
 
 	def list_to_txt(self, list_input, waytxt):
 		coords = open(waytxt, 'a')
