@@ -2,13 +2,32 @@ import math
 import glob, os
 
 class kml:
-	def __init__(self, way):
+	def __init__(self, way, q, open='non'):
 		self.way = way
+		self.q = q
+		self.errors = 0
+		if self.q == 1:
+			print('Recalculating by Komsomolsky')
+		elif self.q == 2:
+			print('Recalculating by Kirovogorsky')
+		elif self.q == 3:
+			print('Recalculating by Olenegorsky')
+		else:
+			print('Error in pit selection')
+		self.open = open
 
 	def code(self, list):
-		a = (list[0] - 33.16310263) * 41680.84709
-		b = (list[1] - 68.16161113) * 110042.9003
-		c = list[2] + 21.7455 - 300.0
+		if self.q == 1:
+			a = (list[0] - 33.16402807) * 41770.9055
+			b = (list[1] - 68.1607631) * 111211.8087
+		elif self.q == 2:
+			a = (list[0] - 33.16402826) * 41506.1997
+			b = (list[1] - 68.16016716) * 112103.652
+		elif self.q == 3:
+			a = (list[0] - 33.16402826) * 41506.1997
+			b = (list[1] - 68.16016716) * 112103.652
+
+		c = list[2] + 22 - 300.0
 		return [a,b,c]
 
 	def center(self, list_input):
@@ -67,15 +86,15 @@ class kml:
 		dx = x1-x2
 		dy = y1-y2
 
-		atg = math.degrees(math.atan((y2-y1)/(x2-x1)))
+		atg = math.degrees(math.atan(abs(dy)/abs(dx)))
 		if dx<0 and dy<0:
-			az = 90-atg
+			az = 180+atg
 		elif dx<0 and dy>0:
-			az = 90+atg
+			az = 180-atg
 		elif dx>0 and dy>0:
-			az = 270-atg
+			az = atg
 		elif dx>0 and dy<0:
-			az = 270+atg
+			az = 360-atg
 		else:
 			print('no one line')
 
@@ -84,7 +103,7 @@ class kml:
 
 		return round(az,1), round(dip,1)
 
-	def gist(self, list_input, filename=r'\3d_table.txt'):
+	def gist_tr(self, list_input, filename=r'\3d_table.txt'):
 		list_file = []
 		step_az = 10
 		step_dip = 10
@@ -96,14 +115,34 @@ class kml:
 						n += 1
 
 				list_file.append([dip+step_dip/2,az+step_az/2,n])
+		waytxt = self.way + filename
+		with open(waytxt, "w") as file:
+			file.write('Dip Az N\n')
+		self.list_to_txt(list_file, waytxt)
+		if self.open == 'open':
+			os.startfile(waytxt)
+
+	def gist_ln(self, list_input, filename=r'\3d_table.txt'):
+		list_file = []
+		step_az = 10
+		step_dip = 10
+		for dip in range(0,90,step_dip):
+			for az in range(0,360,step_az):
+				n = 0
+				l = 0
+				for list in list_input:
+					if az<list[3] and az+step_az>=list[3] and dip<list[4] and dip+step_dip>=list[4]:
+						n += 1
+						l += list[5]
+
+				list_file.append([dip+step_dip/2,az+step_az/2,n, l])
 
 		waytxt = self.way + filename
 		with open(waytxt, "w") as file:
-			file.write('Az Dip N\n')
+			file.write('Dip Az N, L\n')
 		self.list_to_txt(list_file, waytxt)
-
-
-
+		if self.open == 'open':
+			os.startfile(waytxt)
 
 	def text_coords_to_float(self, coords):
 		coords = coords.replace('        <coordinates>','')
@@ -142,6 +181,7 @@ class kml:
 						az, dip, area = self.area_az_dip(coords)
 						list_out.append([x,y,z,az,dip, shale, area])
 					except:
+						self.errors+=1
 						print('Probably an empty line: {} ({})'.format(idy, file))
 
 	def kml_to_list_size(self, file, list_out):
@@ -159,8 +199,9 @@ class kml:
 							x, y, z = self.center(co_list)
 							length = self.length_from_coords(co_list)
 							az, dip = self.az_from_coords(co_list)
-							list_out.append([x, y, z, length, az, dip])
+							list_out.append([x, y, z, az, dip, length])
 					except:
+						self.errors+=1
 						print('Probably an empty line: {} ({})'.format(idy, file))
 
 	def list_to_txt(self, list_input, waytxt):
@@ -175,28 +216,50 @@ class kml:
 		waytxt = self.way + filename
 		with open(waytxt, "w") as file:
 			file.write('X Y Z Az Dip Shale Square\n')
+		c = 0
 		os.chdir(self.way)
 		all_points = []
 		for file in glob.glob("*.kml"):
+			c+=1
 			list_out = []
 			self.kml_to_list_orientation(file,list_out)
 			for line in list_out:
 				all_points.append(line)
 			self.list_to_txt(list_out, waytxt)
-		self.gist(all_points)
+		self.gist_tr(all_points)
+		print('Read {} files. There are {} errors. End of calculation\n'.format(c, self.errors))
+		if self.open == 'open':
+			os.startfile(waytxt)
 
 	def kml_to_txt_line(self, filename=r'\resut_length.txt'):
 		waytxt = self.way + filename
 		with open(waytxt, "w") as file:
-			file.write('X Y Z length Az Dip\n')
+			file.write('X Y Z Az Dip length\n')
 		os.chdir(self.way)
+		c = 0
+		all_points = []
 		for file in glob.glob("*.kml"):
+			c += 1
 			list_out = []
 			self.kml_to_list_size(file, list_out)
+			for line in list_out:
+				all_points.append(line)
 			self.list_to_txt(list_out, waytxt)
+		self.gist_ln(all_points)	
+		print('Read {} files. There are {} errors. End of calculation\n'.format(c, self.errors))
+		if self.open == 'open':
+			os.startfile(waytxt)
 
-a = kml(r"Z:\работы\2019\Олкон\рабочие файлы\2 этап\поиск трещин\Q1")
+c = 3
+
+a = kml(r"Z:\работы\2019\Олкон\рабочие файлы\2 этап\поиск трещин\Q{}\triangle".format(c),c)
+
 a.kml_to_txt_triangle()
-# a = kml(r'D:\ivan')
-# a.kml_to_txt_line()
+
+
+
+b = kml(r"Z:\работы\2019\Олкон\рабочие файлы\2 этап\поиск трещин\Q{}\length".format(c),c)
+
+b.kml_to_txt_line()
+
 
